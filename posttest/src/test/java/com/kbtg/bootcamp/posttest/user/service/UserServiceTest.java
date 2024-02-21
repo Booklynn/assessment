@@ -57,9 +57,7 @@ class UserServiceTest {
     public void testPurchaseLotteryTicketWithUserNotFound() {
         when(userRepository.findByUserId("9999999999")).thenReturn(null);
 
-        assertThrows(ResourceUnavailableException.class, () -> {
-            userService.purchaseLotteryTicket("9999999999", "123456");
-        });
+        assertThrows(ResourceUnavailableException.class, () -> userService.purchaseLotteryTicket("9999999999", "123456"));
     }
 
     @Test
@@ -67,9 +65,7 @@ class UserServiceTest {
         when(userRepository.findByUserId("1234567890")).thenReturn(new User());
         when(lotteryTicketRepository.findByTicket("999999")).thenReturn(null);
 
-        assertThrows(ResourceUnavailableException.class, () -> {
-            userService.purchaseLotteryTicket("1234567890", "999999");
-        });
+        assertThrows(ResourceUnavailableException.class, () -> userService.purchaseLotteryTicket("1234567890", "999999"));
 
     }
 
@@ -79,9 +75,7 @@ class UserServiceTest {
         outOfStockTicket.setAmount(0);
         when(lotteryTicketRepository.findByTicket("outOfStockTicketId")).thenReturn(outOfStockTicket);
 
-        assertThrows(ResourceUnavailableException.class, () -> {
-            userService.purchaseLotteryTicket("1234567890", "888888");
-        });
+        assertThrows(ResourceUnavailableException.class, () -> userService.purchaseLotteryTicket("1234567890", "888888"));
     }
 
 }
