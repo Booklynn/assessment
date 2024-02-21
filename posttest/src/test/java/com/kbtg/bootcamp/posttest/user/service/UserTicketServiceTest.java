@@ -25,7 +25,7 @@ class UserTicketServiceTest {
     @MockBean
     private UserTicketRepository userTicketRepository;
     @Test
-    void createUserTicketTransaction() {
+    void testCreateUserTicketTransaction() {
         User user = new User();
         user.setId(1);
 

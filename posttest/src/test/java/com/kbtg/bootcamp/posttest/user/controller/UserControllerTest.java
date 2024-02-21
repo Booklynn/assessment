@@ -1,6 +1,8 @@
 package com.kbtg.bootcamp.posttest.user.controller;
 
 import com.kbtg.bootcamp.posttest.exception.ResourceUnavailableException;
+import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketListResponse;
+import com.kbtg.bootcamp.posttest.user.model.UserTicketListResponse;
 import com.kbtg.bootcamp.posttest.user.model.UserTicketResponse;
 import com.kbtg.bootcamp.posttest.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +17,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -135,10 +140,76 @@ class UserControllerTest {
             "123, 123",
     })
     @WithMockUser(username = "user", roles = "USER")
-    public void testPurchaseLotteryTicketWithInvalidData(String userId, String ticketId) throws Exception {
+    void testPurchaseLotteryTicketWithInvalidData(String userId, String ticketId) throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.post("/users/{userId}/lotteries/{ticketId}", userId, ticketId)
                 .with(csrf()).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void testGetUserLotteryTickets() throws Exception {
+        String userId = "1234567890";
+
+        when(userService.getUserLotteryTicketList(userId))
+                .thenReturn(new UserTicketListResponse(List.of("123456", "000000", "000000"), 3, 160));
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/users/{userId}/lotteries", userId)
+                        .with(csrf()).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.tickets").isArray())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.tickets[0]").value("123456"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.tickets[1]").value("000000"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.tickets[2]").value("000000"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.count").value(3))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.cost").value(160));
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void testGetZeroUserLotteryTicket() throws Exception {
+        String userId = "1234567890";
+
+        when(userService.getUserLotteryTicketList(userId))
+                .thenReturn(new UserTicketListResponse(List.of(), 0, 0));
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/users/{userId}/lotteries", userId)
+                        .with(csrf()).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.tickets").isArray())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.tickets.length()").value(0))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.tickets").isEmpty())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.count").value(0))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.cost").value(0));
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void testGetUserLotteryTicketsWithNonExistingUserId() throws Exception {
+        String userId = "1234567890";
+
+        when(userService.getUserLotteryTicketList(userId))
+                .thenThrow(new ResourceUnavailableException("userId: " + userId + " not found"));
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/users/{userId}/lotteries", userId)
+                        .with(csrf()).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("userId: " + userId + " not found"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.httpStatus").value("NOT_FOUND"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.dateTime").exists());
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void testGetUserLotteryTicketsButInternalServerError() throws Exception {
+        String userId = "1234567890";
+
+        when(userService.getUserLotteryTicketList(userId))
+                .thenThrow(new RuntimeException());
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/users/{userId}/lotteries", userId)
+                        .with(csrf()).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isInternalServerError())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when getting lottery ticket list"));
+    }
 }
