@@ -204,7 +204,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "user", roles = "USER")
-    @DisplayName("Adding a lottery ticket should return an error message on encountering an internal server error")
+    @DisplayName("Getting lottery tickets should return an error message on encountering an internal server error")
     void testGetAllLotteryTicketsButInternalServerError() throws Exception {
 
         when(lotteryService.getLotteryTicketList()).thenThrow(new RuntimeException());
