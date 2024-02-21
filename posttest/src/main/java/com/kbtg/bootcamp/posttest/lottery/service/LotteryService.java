@@ -1,5 +1,6 @@
 package com.kbtg.bootcamp.posttest.lottery.service;
 
+import com.kbtg.bootcamp.posttest.exception.DuplicationException;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicket;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketListResponse;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketRequest;
@@ -7,6 +8,7 @@ import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketResponse;
 import com.kbtg.bootcamp.posttest.lottery.repository.LotteryTicketRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,7 +23,13 @@ public class LotteryService {
         this.lotteryTicketRepository = lotteryTicketRepository;
     }
 
+    @Transactional
     public LotteryTicketResponse createLotteryTicket(LotteryTicketRequest request) {
+        LotteryTicket existingTicket = lotteryTicketRepository.findByTicket(request.getTicket());
+        if (existingTicket != null) {
+            throw new DuplicationException("ticketId: " + request.getTicket() + " already existing");
+        }
+
         LotteryTicket ticket = new LotteryTicket();
         ticket.setTicket(request.getTicket());
         ticket.setPrice(request.getPrice());

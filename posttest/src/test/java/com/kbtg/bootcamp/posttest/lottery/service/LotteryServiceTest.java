@@ -1,5 +1,6 @@
 package com.kbtg.bootcamp.posttest.lottery.service;
 
+import com.kbtg.bootcamp.posttest.exception.DuplicationException;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicket;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketListResponse;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketRequest;
@@ -19,8 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @TestPropertySource(locations="classpath:application-test.properties")
@@ -46,7 +48,7 @@ public class LotteryServiceTest {
             "000000, 1, 10",
             "100000, 100, 100",
     })
-    @DisplayName("When create a new valid lottery ticket should return valid ticket number")
+    @DisplayName("Creating a new valid lottery ticket, should return valid ticket number")
     void testCreateLotteryTicket(String ticketNumber, int price, int amount) {
         lotteryTicketRequest.setTicket(ticketNumber);
         lotteryTicketRequest.setPrice(price);
@@ -63,7 +65,20 @@ public class LotteryServiceTest {
     }
 
     @Test
-    @DisplayName("When get lottery ticket list should return valid ticket list")
+    @DisplayName("Should not create duplicate lottery ticket but throw 'DuplicationException'")
+    void testShouldNotCreateDuplicateTicket() {
+        lotteryTicketRequest.setTicket("123456");
+        lotteryTicket.setTicket("123456");
+
+        when(lotteryTicketRepository.findByTicket("123456")).thenReturn(lotteryTicket);
+        DuplicationException actualResult = assertThrows(DuplicationException.class, () -> lotteryService.createLotteryTicket(lotteryTicketRequest));
+
+        verify(lotteryTicketRepository, never()).save(any());
+        assertEquals("ticketId: 123456 already existing", actualResult.getMessage());
+    }
+
+    @Test
+    @DisplayName("Getting the lottery ticket list, should return a valid ticket list")
     void testGetLotteryTicketList() {
         List<String> ticketNumber = List.of("123456", "000000");
         List<LotteryTicket> ticketList = new ArrayList<>();

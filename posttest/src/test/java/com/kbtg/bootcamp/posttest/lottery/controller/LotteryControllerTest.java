@@ -1,5 +1,6 @@
 package com.kbtg.bootcamp.posttest.lottery.controller;
 
+import com.kbtg.bootcamp.posttest.exception.DuplicationException;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketListResponse;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketRequest;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketResponse;
@@ -33,7 +34,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
-    @DisplayName("When add lottery ticket number 123456 should return ticket: 123456")
+    @DisplayName("Adding lottery ticket number 123456 should return ticket: 123456")
     void testAddLotteryTicket() throws Exception {
         String requestJson = "{\"ticket\": \"123456\", \"price\": 80, \"amount\": 1}";
         LotteryTicketResponse lotteryTicketResponse = new LotteryTicketResponse("123456");
@@ -49,7 +50,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
-    @DisplayName("When add lottery ticket but encounter internal server error should return error message")
+    @DisplayName("Adding lottery ticket encounters internal server error should return error message")
     void testAddLotteryTicketButInternalServerError() throws Exception {
         String requestJson = "{\"ticket\": \"123456\", \"price\": 80, \"amount\": 1}";
 
@@ -72,7 +73,7 @@ class LotteryControllerTest {
             "1, 80, 1",
             "1234567, 80, 1",
     })
-    @DisplayName("When add invalid ticket number should return ticket number must be 6 digits")
+    @DisplayName("Adding an invalid ticket number should return 'Ticket number must be 6 digits'")
     void testAddLotteryTicketWithInvalidTicketValue(String ticketNumber, int price, int amount) throws Exception {
         String requestJson = String.format("{\"ticket\": \"%s\", \"price\": %d, \"amount\": %d}", ticketNumber, price, amount);
 
@@ -88,7 +89,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
-    @DisplayName("When add ticket with 0 price should return price should not be less than 1")
+    @DisplayName("Adding a ticket with a price of 0 should return 'Price should not be less than 1'")
     void testAddLotteryTicketWithZeroPriceShouldReturnError() throws Exception {
         String requestJson = "{\"ticket\": \"123456\", \"price\": 0, \"amount\": 1}";
 
@@ -104,7 +105,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
-    @DisplayName("When add ticket with 0 amount should return amount should not be less than 1")
+    @DisplayName("Adding a ticket with an amount of 0 should return 'Amount should not be less than 1'")
     void testAddLotteryTicketWithZeroAmountShouldReturnError() throws Exception {
         String requestJson = "{\"ticket\": \"123456\", \"price\": 1, \"amount\": 0}";
 
@@ -120,6 +121,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
+    @DisplayName("Adding lottery ticket without ticket value")
     void testAddLotteryTicketWithoutTicketValue() throws Exception {
         String requestJson = "{\"price\": 80, \"amount\": 1}";
 
@@ -135,6 +137,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
+    @DisplayName("Adding lottery ticket without price value")
     void testAddLotteryTicketWithoutPriceValue() throws Exception {
         String requestJson = "{\"ticket\": \"123456\", \"amount\": 1}";
 
@@ -150,6 +153,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
+    @DisplayName("Adding lottery ticket without amount value")
     void testAddLotteryTicketWithoutAmountValue() throws Exception {
         String requestJson = "{\"ticket\": \"123456\", \"price\": 1}";
 
@@ -165,7 +169,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "user", roles = "USER")
-    @DisplayName("When have 2 lottery tickets, get lotteries should return 2 lottery tickets")
+    @DisplayName("Having 2 lottery tickets, get lotteries should return 2 lottery tickets")
     void testGetTwoLotteryTickets() throws Exception {
         LotteryTicketListResponse lotteryTicketListResponse = new LotteryTicketListResponse(List.of("123456", "000000"));
 
@@ -184,7 +188,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "user", roles = "USER")
-    @DisplayName("When not have lottery ticket, get lotteries should return empty")
+    @DisplayName("Not having any lottery tickets, get lotteries should return empty")
     void testGetZeroTickets() throws Exception {
         when(lotteryService.getLotteryTicketList())
                 .thenReturn(new LotteryTicketListResponse(List.of()));
@@ -200,7 +204,7 @@ class LotteryControllerTest {
 
     @Test
     @WithMockUser(username = "user", roles = "USER")
-    @DisplayName("When add lottery ticket but encounter internal server error should return error message")
+    @DisplayName("Adding a lottery ticket should return an error message on encountering an internal server error")
     void testGetAllLotteryTicketsButInternalServerError() throws Exception {
 
         when(lotteryService.getLotteryTicketList()).thenThrow(new RuntimeException());
@@ -210,6 +214,23 @@ class LotteryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isInternalServerError())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when getting lottery ticket list"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    @DisplayName("Adding a duplicated lottery ticket should return an error message")
+    void testAddDuplicatedLotteryTicket() throws Exception {
+        String requestJson = "{\"ticket\": \"123456\", \"price\": 80, \"amount\": 1}";
+
+        when(lotteryService.createLotteryTicket(any(LotteryTicketRequest.class)))
+                .thenThrow(new DuplicationException("ticketId: 123456 already existing"));
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/admin/lotteries")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                .content(requestJson))
+                .andExpect(MockMvcResultMatchers.status().isConflict())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("ticketId: 123456 already existing"));
     }
 
 }

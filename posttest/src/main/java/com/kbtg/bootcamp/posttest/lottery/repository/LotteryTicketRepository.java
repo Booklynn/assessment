@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface LotteryTicketRepository extends JpaRepository<LotteryTicket, Long> {
+    LotteryTicket findByTicket(String ticket);
 }

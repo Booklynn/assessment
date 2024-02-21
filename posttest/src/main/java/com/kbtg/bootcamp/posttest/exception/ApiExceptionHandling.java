@@ -25,7 +25,7 @@ public class ApiExceptionHandling {
     }
 
     @ExceptionHandler(value = {InternalServiceException.class})
-    public ResponseEntity<Object> handleInternalService(InternalServiceException internalServiceException) {
+    public ResponseEntity<Object> handleInternalServiceException(InternalServiceException internalServiceException) {
         ApiExceptionResponse apiExceptionResponse = new ApiExceptionResponse(
                 internalServiceException.getMessage(),
                 HttpStatus.INTERNAL_SERVER_ERROR,
@@ -33,5 +33,27 @@ public class ApiExceptionHandling {
         );
 
         return new ResponseEntity<>(apiExceptionResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(value = {ResourceUnavailableException.class})
+    public ResponseEntity<Object> handleResourceUnavailableException(ResourceUnavailableException resourceUnavailableException) {
+        ApiExceptionResponse apiExceptionResponse = new ApiExceptionResponse(
+                resourceUnavailableException.getMessage(),
+                HttpStatus.NOT_FOUND,
+                ZonedDateTime.now()
+        );
+
+        return new ResponseEntity<>(apiExceptionResponse, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(value = {DuplicationException.class})
+    public ResponseEntity<Object> handleDuplicationException(DuplicationException duplicationException) {
+        ApiExceptionResponse apiExceptionResponse = new ApiExceptionResponse(
+                duplicationException.getMessage(),
+                HttpStatus.CONFLICT,
+                ZonedDateTime.now()
+        );
+
+        return new ResponseEntity<>(apiExceptionResponse, HttpStatus.CONFLICT);
     }
 }
