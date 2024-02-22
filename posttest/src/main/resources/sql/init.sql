@@ -22,6 +22,9 @@ CREATE TABLE user_ticket (
      lottery_id INTEGER REFERENCES lottery(id)
 );
 
+INSERT INTO lottery (ticket_id, price, amount) VALUES
+    ('666666', 6, 6);
+
 INSERT INTO users (user_id) VALUES
     ('0000000000'),
     ('0000000001'),

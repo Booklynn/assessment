@@ -1,6 +1,7 @@
 package com.kbtg.bootcamp.posttest.lottery.service;
 
 import com.kbtg.bootcamp.posttest.exception.DuplicationException;
+import com.kbtg.bootcamp.posttest.exception.ResourceUnavailableException;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicket;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketListResponse;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketRequest;
@@ -24,20 +25,24 @@ public class LotteryService {
     }
 
     @Transactional
-    public LotteryTicketResponse createLotteryTicket(LotteryTicketRequest request) {
-        LotteryTicket existingTicket = lotteryTicketRepository.findByTicket(request.getTicket());
-        if (existingTicket != null) {
-            throw new DuplicationException("ticketId: " + request.getTicket() + " already existing");
-        }
+    public LotteryTicketResponse createLotteryTicket(LotteryTicketRequest lotteryTicketRequest) {
+        checkLotteryDuplication(lotteryTicketRequest);
 
         LotteryTicket ticket = new LotteryTicket();
-        ticket.setTicket(request.getTicket());
-        ticket.setPrice(request.getPrice());
-        ticket.setAmount(request.getAmount());
+        ticket.setTicket(lotteryTicketRequest.getTicket());
+        ticket.setPrice(lotteryTicketRequest.getPrice());
+        ticket.setAmount(lotteryTicketRequest.getAmount());
 
         LotteryTicket savedTicket = lotteryTicketRepository.save(ticket);
 
         return new LotteryTicketResponse(savedTicket.getTicket());
+    }
+
+    private void checkLotteryDuplication(LotteryTicketRequest lotteryTicketRequest) {
+        LotteryTicket existingTicket = lotteryTicketRepository.findByTicket(lotteryTicketRequest.getTicket());
+        if (existingTicket != null) {
+            throw new DuplicationException("ticketId: " + lotteryTicketRequest.getTicket() + " already existing");
+        }
     }
 
     public LotteryTicketListResponse getLotteryTicketList() {
@@ -48,5 +53,13 @@ public class LotteryService {
                 .collect(Collectors.toList());
 
         return new LotteryTicketListResponse(ticketNumbers);
+    }
+
+    public LotteryTicket getLotteryTicket(String ticketId) {
+        LotteryTicket lotteryTicket = lotteryTicketRepository.findByTicket(ticketId);
+        if (lotteryTicket == null || lotteryTicket.getAmount() <= 0) {
+            throw new ResourceUnavailableException("ticketId: " + ticketId + " unavailable (not found or out of stock)");
+        }
+        return lotteryTicket;
     }
 }

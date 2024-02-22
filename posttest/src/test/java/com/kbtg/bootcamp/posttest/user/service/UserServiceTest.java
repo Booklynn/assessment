@@ -2,6 +2,7 @@ package com.kbtg.bootcamp.posttest.user.service;
 
 import com.kbtg.bootcamp.posttest.exception.ResourceUnavailableException;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicket;
+import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketResponse;
 import com.kbtg.bootcamp.posttest.lottery.repository.LotteryTicketRepository;
 import com.kbtg.bootcamp.posttest.user.model.User;
 import com.kbtg.bootcamp.posttest.user.model.UserTicket;
@@ -9,12 +10,14 @@ import com.kbtg.bootcamp.posttest.user.model.UserTicketListResponse;
 import com.kbtg.bootcamp.posttest.user.model.UserTicketResponse;
 import com.kbtg.bootcamp.posttest.user.repository.UserRepository;
 import com.kbtg.bootcamp.posttest.user.repository.UserTicketRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -24,6 +27,7 @@ import static org.mockito.Mockito.*;
 @SpringBootTest
 @TestPropertySource(locations="classpath:application-test.properties")
 class UserServiceTest {
+    private User user;
 
     @Autowired
     private UserService userService;
@@ -40,9 +44,13 @@ class UserServiceTest {
     @MockBean
     private UserTicketService userTicketService;
 
+    @BeforeEach
+    void testSetup() {
+        user = new User();
+    }
+
     @Test
     void testPurchaseLotteryTicketSuccess() {
-        User user = new User();
         user.setId(1);
         user.setUserId("1234567890");
         when(userRepository.findByUserId(user.getUserId())).thenReturn(user);
@@ -55,11 +63,13 @@ class UserServiceTest {
         when(lotteryTicketRepository.findByTicket(lotteryTicket.getTicket())).thenReturn(lotteryTicket);
 
         UserTicketResponse userTicketResponse = new UserTicketResponse(1);
-        when(userTicketService.createUserTicketTransaction(user, lotteryTicket)).thenReturn(userTicketResponse);
+        when(userTicketService.createUserTicket(user, lotteryTicket)).thenReturn(userTicketResponse);
 
         UserTicketResponse actualResult = userService.purchaseLotteryTicket(user.getUserId(), lotteryTicket.getTicket());
 
+        verify(lotteryTicketRepository, times(1)).save(lotteryTicket);
         assertEquals(userTicketResponse.id(), actualResult.id());
+        assertEquals(0, lotteryTicket.getAmount());
     }
 
     @Test
@@ -71,7 +81,7 @@ class UserServiceTest {
 
     @Test
     void testPurchaseLotteryTicketWithNotFoundTicket() {
-        when(userRepository.findByUserId("1234567890")).thenReturn(new User());
+        when(userRepository.findByUserId("1234567890")).thenReturn(user);
         when(lotteryTicketRepository.findByTicket("999999")).thenReturn(null);
 
         assertThrows(ResourceUnavailableException.class, () -> userService.purchaseLotteryTicket("1234567890", "999999"));
@@ -89,39 +99,23 @@ class UserServiceTest {
 
     @Test
     void testGetUserLotteryTicketList() {
-        List<String> expectedTicketNumbers = Arrays.asList("123456", "123456", "666666");
-        User user = new User();
+        String userId = "1234567890";
         user.setId(1);
-        user.setUserId("1234567890");
+        user.setUserId(userId);
         user.setTotalSpent(260);
         user.setTotalLottery(3);
+        List<String> ticketNumbers = Arrays.asList("123456", "123456", "666666");
 
-        LotteryTicket lotteryTicket1 = new LotteryTicket();
-        lotteryTicket1.setTicket("123456");
-        lotteryTicket1.setPrice(80);
-        lotteryTicket1.setAmount(2);
+        when(userRepository.findByUserId(userId)).thenReturn(user);
+        when(userTicketService.getUserLotteryTicketList(userId)).thenReturn(ticketNumbers);
 
-        LotteryTicket lotteryTicket2 = new LotteryTicket();
-        lotteryTicket2.setTicket("666666");
-        lotteryTicket2.setPrice(100);
-        lotteryTicket2.setAmount(1);
+        UserTicketListResponse actualResult = userService.getUserLotteryTicketList(userId);
 
-        UserTicket userTicket1 = new UserTicket();
-        userTicket1.setLottery(lotteryTicket1);
-
-        UserTicket userTicket2 = new UserTicket();
-        userTicket2.setLottery(lotteryTicket2);
-
-        when(userRepository.findByUserId("1234567890")).thenReturn(user);
-        List<UserTicket> userTickets = Arrays.asList(userTicket1, userTicket1, userTicket2);
-        when(userTicketRepository.findByUserUserId("1234567890")).thenReturn(userTickets);
-        UserTicketListResponse actualResult = userService.getUserLotteryTicketList("1234567890");
-
-        verify(userRepository, times(1)).findByUserId(user.getUserId());
-        verify(userTicketRepository, times(1)).findByUserUserId(user.getUserId());
+        verify(userRepository, times(1)).findByUserId(userId);
+        verify(userTicketService, times(1)).getUserLotteryTicketList(userId);
         assertEquals(user.getTotalLottery(), actualResult.count());
         assertEquals(user.getTotalSpent(), actualResult.cost());
-        assertEquals(expectedTicketNumbers, actualResult.tickets());
+        assertEquals(ticketNumbers, actualResult.tickets());
     }
 
     @Test
@@ -129,5 +123,36 @@ class UserServiceTest {
         when(userRepository.findByUserId("9999999999")).thenReturn(null);
 
         assertThrows(ResourceUnavailableException.class, () -> userService.getUserLotteryTicketList("9999999999"));
+    }
+
+    @Test
+     void testSellLotteryTicketsSuccess() {
+        String userId = "1234567890";
+        String ticketId = "123456";
+
+        User user = new User();
+        user.setUserId(userId);
+
+        LotteryTicket lotteryTicket = new LotteryTicket();
+        lotteryTicket.setTicket(ticketId);
+        lotteryTicket.setAmount(5);
+        lotteryTicket.setPrice(2);
+
+        List<UserTicket> userTickets = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            UserTicket userTicket = new UserTicket();
+            userTicket.setLottery(lotteryTicket);
+            userTickets.add(userTicket);
+        }
+
+        when(userRepository.findByUserId(userId)).thenReturn(user);
+        when(userTicketService.getUserLotteryTicketList(userId, ticketId)).thenReturn(userTickets);
+
+        LotteryTicketResponse actualResult = userService.sellLotteryTickets(userId, ticketId);
+
+        verify(lotteryTicketRepository, times(1)).save(lotteryTicket);
+        verify(userTicketRepository, times(1)).deleteAll(userTickets);
+        assertEquals(ticketId, actualResult.ticket());
+        assertEquals(8, lotteryTicket.getAmount());
     }
 }

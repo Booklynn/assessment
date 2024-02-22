@@ -1,7 +1,7 @@
 package com.kbtg.bootcamp.posttest.user.controller;
 
 import com.kbtg.bootcamp.posttest.exception.ResourceUnavailableException;
-import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketListResponse;
+import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketResponse;
 import com.kbtg.bootcamp.posttest.user.model.UserTicketListResponse;
 import com.kbtg.bootcamp.posttest.user.model.UserTicketResponse;
 import com.kbtg.bootcamp.posttest.user.service.UserService;
@@ -211,5 +211,53 @@ class UserControllerTest {
                         .with(csrf()).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isInternalServerError())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when getting lottery ticket list"));
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void testDeleteUserLotteryTickets() throws Exception {
+        String userId = "0000000001";
+        String ticketId = "123456";
+
+        LotteryTicketResponse lotteryTicketResponse = new LotteryTicketResponse(ticketId);
+
+        when(userService.sellLotteryTickets(userId, ticketId)).thenReturn(lotteryTicketResponse);
+
+        mockMvc.perform(MockMvcRequestBuilders.delete("/users/{userId}/lotteries/{ticketId}", userId, ticketId)
+                        .with(csrf()).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.ticket").value(lotteryTicketResponse.ticket()));
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void testDeleteUserLotteryTicketsButInternalServerError() throws Exception {
+        String userId = "1234567890";
+        String ticketId = "123456";
+
+        when(userService.sellLotteryTickets(userId, ticketId))
+                .thenThrow(new RuntimeException());
+
+        mockMvc.perform(MockMvcRequestBuilders.delete("/users/{userId}/lotteries/{ticketId}", userId, ticketId)
+                        .with(csrf()).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isInternalServerError())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when deleting lottery tickets"));
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void testDeleteUserLotteryTicketsWithNonExistingUserIdOrTicketId() throws Exception {
+        String userId = "1234567890";
+        String ticketId = "123456";
+
+        when(userService.sellLotteryTickets(userId, ticketId))
+                .thenThrow(new ResourceUnavailableException("userId: " + userId + " does not own this " + "ticketId: " + ticketId));
+
+        mockMvc.perform(MockMvcRequestBuilders.delete("/users/{userId}/lotteries/{ticketId}", userId, ticketId)
+                        .with(csrf()).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("userId: " + userId + " does not own this " + "ticketId: " + ticketId))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.httpStatus").value("NOT_FOUND"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.dateTime").exists());
     }
 }

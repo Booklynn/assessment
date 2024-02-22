@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface UserTicketRepository extends JpaRepository<UserTicket, Long> {
     List<UserTicket> findByUserUserId(String userId);
+    List<UserTicket> findByUserUserIdAndLotteryTicket(String userId, String ticketId);
 }
