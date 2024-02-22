@@ -2,7 +2,9 @@ package com.kbtg.bootcamp.posttest.user.service;
 
 import com.kbtg.bootcamp.posttest.exception.ResourceUnavailableException;
 import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicket;
+import com.kbtg.bootcamp.posttest.lottery.model.LotteryTicketResponse;
 import com.kbtg.bootcamp.posttest.lottery.repository.LotteryTicketRepository;
+import com.kbtg.bootcamp.posttest.lottery.service.LotteryService;
 import com.kbtg.bootcamp.posttest.user.model.User;
 import com.kbtg.bootcamp.posttest.user.model.UserTicket;
 import com.kbtg.bootcamp.posttest.user.model.UserTicketListResponse;
@@ -20,35 +22,31 @@ public class UserService {
     private final UserTicketRepository userTicketRepository;
     private final LotteryTicketRepository lotteryTicketRepository;
     private final UserTicketService userTicketService;
+    private final LotteryService lotteryService;
 
     @Autowired
     public UserService(
             UserRepository userRepository,
             LotteryTicketRepository lotteryTicketRepository,
             UserTicketService userTicketService,
-            UserTicketRepository userTicketRepository
+            UserTicketRepository userTicketRepository,
+            LotteryService lotteryService
     ) {
         this.userRepository = userRepository;
         this.lotteryTicketRepository = lotteryTicketRepository;
         this.userTicketService = userTicketService;
         this.userTicketRepository = userTicketRepository;
+        this.lotteryService = lotteryService;
     }
 
     @Transactional
     public UserTicketResponse purchaseLotteryTicket(String userId, String ticketId) {
-        User user = userRepository.findByUserId(userId);
-        if (user == null) {
-            throw new ResourceUnavailableException("userId: " + userId + " not found");
-        }
+        User user = getUser(userId);
+        LotteryTicket lotteryTicket = lotteryService.getLotteryTicket(ticketId);
 
-        LotteryTicket lotteryTicket = lotteryTicketRepository.findByTicket(ticketId);
-        if (lotteryTicket == null || lotteryTicket.getAmount() <= 0) {
-            throw new ResourceUnavailableException("ticketId: " + ticketId + " unavailable (not found or out of stock)");
-        }
+        UserTicketResponse userTicket = userTicketService.createUserTicket(user, lotteryTicket);
 
-        UserTicketResponse userTicket = userTicketService.createUserTicketTransaction(user, lotteryTicket);
-
-        this.updateUserActivity(user, lotteryTicket.getPrice());
+        this.updateUserPurchaseLotteryTicketActivity(user, lotteryTicket.getPrice());
         
         lotteryTicket.setAmount(lotteryTicket.getAmount() - 1);
         lotteryTicketRepository.save(lotteryTicket);
@@ -56,30 +54,60 @@ public class UserService {
         return new UserTicketResponse(userTicket.id());
     }
 
+    private User getUser(String userId) {
+        User user = userRepository.findByUserId(userId);
+        if (user == null) {
+            throw new ResourceUnavailableException("userId: " + userId + " not found");
+        }
+        return user;
+    }
+
     @Transactional
-    protected void updateUserActivity(User user, int price) {
+    protected void updateUserPurchaseLotteryTicketActivity(User user, int price) {
         user.setTotalSpent(user.getTotalSpent() + price);
         user.setTotalLottery(user.getTotalLottery() + 1);
         userRepository.save(user);
     }
 
+    @Transactional
+    protected void updateUserSellLotteryTicketActivity(User user, int userTicketLength, int lotteryTicketPrice) {
+        int totalSpent = user.getTotalSpent();
+        int totalLottery = user.getTotalLottery();
+
+        totalSpent -= userTicketLength * lotteryTicketPrice;
+        totalLottery -= userTicketLength;
+
+        user.setTotalSpent(totalSpent);
+        user.setTotalLottery(totalLottery);
+        userRepository.save(user);
+    }
+
     public UserTicketListResponse getUserLotteryTicketList(String userId) {
-        User user = userRepository.findByUserId(userId);
-        if (user == null) {
-            throw new ResourceUnavailableException("userId: " + userId + " not found");
-        }
+        User user = getUser(userId);
 
         int totalSpent = user.getTotalSpent();
         int totalLottery = user.getTotalLottery();
 
-        List<UserTicket> userTickets = userTicketRepository.findByUserUserId(userId);
+        List<String> userTickets = userTicketService.getUserLotteryTicketList(userId);
 
-        List<String> ticketNumbers = userTickets
-                .stream()
-                .map(userTicket -> userTicket.getLottery().getTicket())
-                .toList();
+        return new UserTicketListResponse(userTickets, totalLottery, totalSpent);
+    }
 
-        return new UserTicketListResponse(ticketNumbers, totalLottery, totalSpent);
+    @Transactional
+    public LotteryTicketResponse sellLotteryTickets(String userId, String ticketId) {
+        User user = userRepository.findByUserId(userId);
+        List<UserTicket> userTickets = userTicketService.getUserLotteryTicketList(userId, ticketId);
+        LotteryTicket lotteryTicket = userTickets.get(0).getLottery();
+
+        int updatedAmount = lotteryTicket.getAmount() + userTickets.size();
+
+        lotteryTicket.setAmount(updatedAmount);
+        lotteryTicketRepository.save(lotteryTicket);
+
+        this.updateUserSellLotteryTicketActivity(user, userTickets.size(), lotteryTicket.getPrice());
+        userTicketRepository.deleteAll(userTickets);
+
+        return new LotteryTicketResponse(lotteryTicket.getTicket());
     }
 
 }
