@@ -92,7 +92,7 @@ class UserControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.post("/users/{userId}/lotteries/{ticketId}", userId, ticketId)
                         .with(csrf()).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when adding a lottery ticket to user"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when purchasing a lottery ticket to user"))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.httpStatus").value("INTERNAL_SERVER_ERROR"))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.dateTime").exists());
     }
@@ -241,7 +241,7 @@ class UserControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.delete("/users/{userId}/lotteries/{ticketId}", userId, ticketId)
                         .with(csrf()).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isInternalServerError())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when deleting lottery tickets"));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.message").value("An internal error occurred when selling lottery tickets"));
     }
 
     @Test

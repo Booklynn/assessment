@@ -35,7 +35,7 @@ public class UserController {
         } catch (ResourceUnavailableException e) {
             throw e;
         } catch (Exception e) {
-            throw new InternalServiceException("An internal error occurred when adding a lottery ticket to user");
+            throw new InternalServiceException("An internal error occurred when purchasing a lottery ticket to user");
         }
     }
 
@@ -64,7 +64,7 @@ public class UserController {
         } catch (ResourceUnavailableException e) {
             throw e;
         } catch (Exception e) {
-            throw new InternalServiceException("An internal error occurred when deleting lottery tickets");
+            throw new InternalServiceException("An internal error occurred when selling lottery tickets");
         }
     }
 
