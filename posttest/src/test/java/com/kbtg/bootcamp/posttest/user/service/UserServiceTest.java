@@ -68,6 +68,8 @@ class UserServiceTest {
         UserTicketResponse actualResult = userService.purchaseLotteryTicket(user.getUserId(), lotteryTicket.getTicket());
 
         verify(lotteryTicketRepository, times(1)).save(lotteryTicket);
+        assertEquals(80, user.getTotalSpent());
+        assertEquals(1, user.getTotalLottery());
         assertEquals(userTicketResponse.id(), actualResult.id());
         assertEquals(0, lotteryTicket.getAmount());
     }
@@ -132,6 +134,8 @@ class UserServiceTest {
 
         User user = new User();
         user.setUserId(userId);
+        user.setTotalLottery(4);
+        user.setTotalSpent(8);
 
         LotteryTicket lotteryTicket = new LotteryTicket();
         lotteryTicket.setTicket(ticketId);
@@ -141,6 +145,7 @@ class UserServiceTest {
         List<UserTicket> userTickets = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
             UserTicket userTicket = new UserTicket();
+            userTicket.setUser(user);
             userTicket.setLottery(lotteryTicket);
             userTickets.add(userTicket);
         }
@@ -152,7 +157,9 @@ class UserServiceTest {
 
         verify(lotteryTicketRepository, times(1)).save(lotteryTicket);
         verify(userTicketRepository, times(1)).deleteAll(userTickets);
-        assertEquals(ticketId, actualResult.ticket());
+        assertEquals(2, user.getTotalSpent());
+        assertEquals(1, user.getTotalLottery());
         assertEquals(8, lotteryTicket.getAmount());
+        assertEquals(ticketId, actualResult.ticket());
     }
 }

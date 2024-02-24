@@ -57,10 +57,14 @@ public class LotteryServiceTest {
         lotteryTicket.setPrice(price);
         lotteryTicket.setAmount(amount);
 
-        when(lotteryTicketRepository.save(any())).thenReturn(lotteryTicket);
+        when(lotteryTicketRepository.save(any(LotteryTicket.class))).thenReturn(lotteryTicket);
         LotteryTicketResponse lotteryTicketResponse = lotteryService.createLotteryTicket(lotteryTicketRequest);
         String actualResult = lotteryTicketResponse.ticket();
 
+        verify(lotteryTicketRepository, times(1)).save(any(LotteryTicket.class));
+        assertEquals(ticketNumber, lotteryTicket.getTicket());
+        assertEquals(price, lotteryTicket.getPrice());
+        assertEquals(amount, lotteryTicket.getAmount());
         assertEquals(ticketNumber, actualResult);
     }
 
